@@ -231,6 +231,10 @@ void UiTranslator::translate_primary_controls(bool analysis_in_progress) const
         checkbox->setText(tr("Scan subfolders"));
         checkbox->setToolTip(tr("Scan files inside subfolders and treat them as part of the main folder."));
     }
+    if (auto* checkbox = raw_ptr(deps_.primary.descend_into_packages_checkbox)) {
+        checkbox->setText(tr("Descend into packages"));
+        checkbox->setToolTip(tr("Treat document packages (for example .app or .photoslibrary) as folders and scan inside them."));
+    }
     if (auto* checkbox = raw_ptr(deps_.primary.analyze_images_checkbox)) {
         checkbox->setText(tr("Analyze picture files by content"));
         checkbox->setToolTip(tr("Run the visual LLM on supported picture files."));

@@ -100,6 +100,11 @@ void MainWindowStateBinder::connect_checkbox_signals()
             update_image_only_controls();
         });
     }
+    if (app_.descend_into_packages_checkbox) {
+        QObject::connect(app_.descend_into_packages_checkbox, &QCheckBox::toggled, &app_, [this](bool checked) {
+            app_.settings.set_descend_into_packages(checked);
+        });
+    }
 
     if (app_.analyze_images_checkbox) {
         QObject::connect(app_.analyze_images_checkbox, &QCheckBox::toggled, &app_, [this](bool checked) {
@@ -292,6 +297,9 @@ void MainWindowStateBinder::restore_tree_settings()
     if (app_.include_subdirectories_checkbox) {
         app_.include_subdirectories_checkbox->setChecked(app_.settings.get_include_subdirectories());
     }
+    if (app_.descend_into_packages_checkbox) {
+        app_.descend_into_packages_checkbox->setChecked(app_.settings.get_descend_into_packages());
+    }
     if (app_.analyze_images_checkbox) {
         QSignalBlocker blocker(app_.analyze_images_checkbox);
         app_.analyze_images_checkbox->setChecked(app_.settings.get_analyze_images_by_content());
@@ -439,6 +447,9 @@ void MainWindowStateBinder::sync_ui_to_settings()
     if (app_.include_subdirectories_checkbox) {
         app_.settings.set_include_subdirectories(app_.include_subdirectories_checkbox->isChecked());
     }
+    if (app_.descend_into_packages_checkbox) {
+        app_.settings.set_descend_into_packages(app_.descend_into_packages_checkbox->isChecked());
+    }
     if (app_.analyze_images_checkbox) {
         app_.settings.set_analyze_images_by_content(app_.analyze_images_checkbox->isChecked());
     }
@@ -552,6 +563,9 @@ FileScanOptions MainWindowStateBinder::effective_scan_options() const
         if (app_.settings.get_include_subdirectories()) {
             options = options | FileScanOptions::Recursive;
         }
+        if (app_.settings.get_descend_into_packages()) {
+            options = options | FileScanOptions::DescendIntoPackages;
+        }
         return options;
     }
     FileScanOptions options = app_.file_scan_options;
@@ -560,6 +574,9 @@ FileScanOptions MainWindowStateBinder::effective_scan_options() const
     }
     if (app_.settings.get_include_subdirectories() && has_flag(options, FileScanOptions::Files)) {
         options = options | FileScanOptions::Recursive;
+    }
+    if (app_.settings.get_descend_into_packages()) {
+        options = options | FileScanOptions::DescendIntoPackages;
     }
     return options;
 }

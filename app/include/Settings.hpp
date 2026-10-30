@@ -259,6 +259,17 @@ public:
     void set_include_subdirectories(bool value);
 
     /**
+     * @brief Returns whether document packages should be scanned as directories.
+     * @return True when packages such as .app or .photoslibrary are descended into.
+     */
+    bool get_descend_into_packages() const;
+    /**
+     * @brief Enables or disables descending into document packages.
+     * @param value True to treat packages as folders and scan inside them.
+     */
+    void set_descend_into_packages(bool value);
+
+    /**
      * @brief Returns whether image content analysis is enabled.
      * @return True when image analysis is enabled.
      */
@@ -711,6 +722,7 @@ private:
     bool categorize_files;
     bool categorize_directories;
     bool include_subdirectories{false};
+    bool descend_into_packages{false};
     bool analyze_images_by_content{false};
     bool offer_rename_images{false};
     bool add_image_date_place_to_filename{false};

@@ -365,11 +365,13 @@ void MainAppUiBuilder::build_central_panel(MainApp& app) {
     app.categorize_files_checkbox = new QCheckBox(central);
     app.categorize_directories_checkbox = new QCheckBox(central);
     app.include_subdirectories_checkbox = new QCheckBox(central);
+    app.descend_into_packages_checkbox = new QCheckBox(central);
     app.categorize_files_checkbox->setChecked(true);
     options_layout->addWidget(app.use_subcategories_checkbox);
     options_layout->addWidget(app.categorize_files_checkbox);
     options_layout->addWidget(app.categorize_directories_checkbox);
     options_layout->addWidget(app.include_subdirectories_checkbox);
+    options_layout->addWidget(app.descend_into_packages_checkbox);
     options_layout->addStretch(1);
     main_layout->addLayout(options_layout);
 
@@ -561,6 +563,7 @@ UiTranslator::Dependencies MainAppUiBuilder::build_translator_dependencies(MainA
             app.categorize_files_checkbox,
             app.categorize_directories_checkbox,
             app.include_subdirectories_checkbox,
+            app.descend_into_packages_checkbox,
             app.analyze_images_checkbox,
             app.process_images_only_checkbox,
             app.add_image_date_to_category_checkbox,

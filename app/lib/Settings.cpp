@@ -509,6 +509,7 @@ void Settings::load_basic_settings(const std::function<bool(const char*, bool)>&
     categorize_files = load_bool("CategorizeFiles", true);
     categorize_directories = load_bool("CategorizeDirectories", false);
     include_subdirectories = load_bool("IncludeSubdirectories", false);
+    descend_into_packages = load_bool("DescendIntoPackages", false);
     analyze_images_by_content = load_bool("AnalyzeImagesByContent", false);
     offer_rename_images = load_bool("OfferRenameImages", false);
     add_image_date_place_to_filename = load_bool("AddImageDatePlaceToFilename", false);
@@ -672,6 +673,7 @@ void Settings::save_core_settings()
     set_bool_setting(config, settings_section, "CategorizeFiles", categorize_files);
     set_bool_setting(config, settings_section, "CategorizeDirectories", categorize_directories);
     set_bool_setting(config, settings_section, "IncludeSubdirectories", include_subdirectories);
+    set_bool_setting(config, settings_section, "DescendIntoPackages", descend_into_packages);
     if (rename_images_only) {
         offer_rename_images = true;
     }
@@ -1152,6 +1154,16 @@ bool Settings::get_include_subdirectories() const
 void Settings::set_include_subdirectories(bool value)
 {
     include_subdirectories = value;
+}
+
+bool Settings::get_descend_into_packages() const
+{
+    return descend_into_packages;
+}
+
+void Settings::set_descend_into_packages(bool value)
+{
+    descend_into_packages = value;
 }
 
 bool Settings::get_analyze_images_by_content() const

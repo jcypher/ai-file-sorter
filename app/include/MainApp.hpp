@@ -481,6 +481,7 @@ private:
     QPointer<QCheckBox> categorize_files_checkbox;
     QPointer<QCheckBox> categorize_directories_checkbox;
     QPointer<QCheckBox> include_subdirectories_checkbox;
+    QPointer<QCheckBox> descend_into_packages_checkbox;
     QPointer<QCheckBox> analyze_images_checkbox;
     QPointer<QCheckBox> process_images_only_checkbox;
     QPointer<QCheckBox> add_image_date_to_category_checkbox;

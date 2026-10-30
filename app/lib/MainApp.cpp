@@ -1187,6 +1187,9 @@ void MainApp::apply_accessibility_metadata()
     apply_named_control(include_subdirectories_checkbox,
                         include_subdirectories_checkbox ? include_subdirectories_checkbox->text() : QString(),
                         include_subdirectories_checkbox ? include_subdirectories_checkbox->toolTip() : QString());
+    apply_named_control(descend_into_packages_checkbox,
+                        descend_into_packages_checkbox ? descend_into_packages_checkbox->text() : QString(),
+                        descend_into_packages_checkbox ? descend_into_packages_checkbox->toolTip() : QString());
     apply_named_control(categorization_style_refined_radio,
                         categorization_style_refined_radio ? categorization_style_refined_radio->text() : QString(),
                         categorization_style_refined_radio

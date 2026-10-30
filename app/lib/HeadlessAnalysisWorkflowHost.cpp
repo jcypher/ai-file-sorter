@@ -273,12 +273,19 @@ AnalysisWorkflowContext HeadlessAnalysisWorkflowHost::make_context()
 
 FileScanOptions HeadlessAnalysisWorkflowHost::effective_scan_options() const
 {
+    const auto with_package_flag = [this](FileScanOptions options) {
+        if (settings_.get_descend_into_packages()) {
+            options = options | FileScanOptions::DescendIntoPackages;
+        }
+        return options;
+    };
+
     if (options_.operation_mode == OperationMode::Rename) {
         FileScanOptions options = FileScanOptions::Files;
         if (settings_.get_include_subdirectories()) {
             options = options | FileScanOptions::Recursive;
         }
-        return options;
+        return with_package_flag(options);
     }
 
     const bool analyze_images = settings_.get_analyze_images_by_content();
@@ -290,7 +297,7 @@ FileScanOptions HeadlessAnalysisWorkflowHost::effective_scan_options() const
         if (settings_.get_include_subdirectories()) {
             options = options | FileScanOptions::Recursive;
         }
-        return options;
+        return with_package_flag(options);
     }
 
     FileScanOptions options = FileScanOptions::None;
@@ -306,7 +313,7 @@ FileScanOptions HeadlessAnalysisWorkflowHost::effective_scan_options() const
     if (settings_.get_include_subdirectories() && has_flag(options, FileScanOptions::Files)) {
         options = options | FileScanOptions::Recursive;
     }
-    return options;
+    return with_package_flag(options);
 }
 
 std::unique_ptr<ILLMClient> HeadlessAnalysisWorkflowHost::make_llm_client()

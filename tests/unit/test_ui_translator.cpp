@@ -51,6 +51,7 @@ struct UiTranslatorTestHarness {
     QPointer<QCheckBox> files_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> directories_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> include_subdirectories_checkbox{new QCheckBox(&window)};
+    QPointer<QCheckBox> descend_into_packages_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> analyze_images_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> process_images_only_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> add_image_date_to_category_checkbox{new QCheckBox(&window)};
@@ -255,6 +256,7 @@ struct UiTranslatorTestHarness {
                 files_checkbox,
                 directories_checkbox,
                 include_subdirectories_checkbox,
+                descend_into_packages_checkbox,
                 analyze_images_checkbox,
                 process_images_only_checkbox,
                 add_image_date_to_category_checkbox,
@@ -370,6 +372,7 @@ void verify_primary_controls(const UiTranslatorTestHarness& h)
     REQUIRE(h.files_checkbox->text() == QStringLiteral("Categorize files"));
     REQUIRE(h.directories_checkbox->text() == QStringLiteral("Categorize folders"));
     REQUIRE(h.include_subdirectories_checkbox->text() == QStringLiteral("Scan subfolders"));
+    REQUIRE(h.descend_into_packages_checkbox->text() == QStringLiteral("Descend into packages"));
     REQUIRE(h.analyze_images_checkbox->text() == QStringLiteral("Analyze picture files by content"));
     REQUIRE(h.process_images_only_checkbox->text() ==
             QStringLiteral("Process picture files only (ignore any other files)"));
