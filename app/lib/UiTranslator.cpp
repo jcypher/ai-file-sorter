@@ -282,6 +282,27 @@ void UiTranslator::translate_primary_controls(bool analysis_in_progress) const
         checkbox->setText(tr("Add document creation date (if available) to category name"));
         checkbox->setToolTip(tr("Append the document creation date from metadata to the category label."));
     }
+    if (auto* checkbox = raw_ptr(deps_.primary.restore_metadata_timestamps_checkbox)) {
+        checkbox->setText(tr("Propose restoring Created/Modified from file metadata"));
+        checkbox->setToolTip(
+            tr("When metadata has a clear older creation or modification date, show it in review and apply it for Process-checked rows."));
+#if defined(Q_OS_MACOS)
+        checkbox->setToolTip(
+            checkbox->toolTip() + QLatin1Char('\n') +
+            tr("Date Added is always preserved across moves on macOS."));
+#endif
+    }
+    if (auto* checkbox = raw_ptr(deps_.primary.derive_folder_dates_from_contents_checkbox)) {
+        checkbox->setText(tr("Set dates on newly created category folders from their contents"));
+        QString tip = tr(
+            "After sorting, newly created category folders get Created = oldest child, Modified = newest child.");
+#if defined(Q_OS_MACOS)
+        tip += QLatin1Char(' ') +
+               tr("Date Added = oldest child Date Added.");
+#endif
+        tip += QLatin1Char(' ') + tr("Existing folders keep their preserved dates.");
+        checkbox->setToolTip(tip);
+    }
     if (auto* button = raw_ptr(deps_.primary.document_options_toggle_button)) {
         button->setToolTip(tr("Show or hide document analysis options"));
     }

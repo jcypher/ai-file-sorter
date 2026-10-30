@@ -365,6 +365,8 @@ HeadlessReviewApplyService::Options preview_apply_options(
     apply_options.move_categorized_entries = operation_moves_categorized_entries(options.operation);
     apply_options.category_language = host.category_language();
     apply_options.apply_changes = false;
+    apply_options.restore_metadata_timestamps = host.restore_metadata_timestamps();
+    apply_options.derive_folder_dates_from_contents = host.derive_folder_dates_from_contents();
     return apply_options;
 }
 
@@ -959,6 +961,8 @@ int HeadlessAnalysisCommand::run(const Options& options,
         apply_options.move_categorized_entries = operation_moves_categorized_entries(options.operation);
         apply_options.category_language = host.category_language();
         apply_options.apply_changes = should_apply_changes(options.apply_mode, host);
+        apply_options.restore_metadata_timestamps = host.restore_metadata_timestamps();
+        apply_options.derive_folder_dates_from_contents = host.derive_folder_dates_from_contents();
 
         HeadlessReviewApplyService apply_service(&host.db_manager(),
                                                  host.storage_provider(),

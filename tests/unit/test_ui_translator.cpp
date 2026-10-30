@@ -64,6 +64,8 @@ struct UiTranslatorTestHarness {
     QPointer<QCheckBox> offer_rename_documents_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> rename_documents_only_checkbox{new QCheckBox(&window)};
     QPointer<QCheckBox> add_document_date_to_category_checkbox{new QCheckBox(&window)};
+    QPointer<QCheckBox> restore_metadata_timestamps_checkbox{new QCheckBox(&window)};
+    QPointer<QCheckBox> derive_folder_dates_from_contents_checkbox{new QCheckBox(&window)};
     QPointer<QToolButton> document_options_toggle_button{new QToolButton(&window)};
 
     QPointer<QStandardItemModel> tree_model{new QStandardItemModel(0, 5, &window)};
@@ -266,6 +268,8 @@ struct UiTranslatorTestHarness {
                 offer_rename_documents_checkbox,
                 rename_documents_only_checkbox,
                 add_document_date_to_category_checkbox,
+                restore_metadata_timestamps_checkbox,
+                derive_folder_dates_from_contents_checkbox,
                 document_options_toggle_button},
             .tree_model = tree_model,
             .menus = UiTranslator::MenuControls{

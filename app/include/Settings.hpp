@@ -400,6 +400,23 @@ public:
     void set_add_document_date_to_category(bool value);
 
     /**
+     * @brief Returns whether metadata timestamps may be proposed/restored on files.
+     */
+    bool get_restore_metadata_timestamps() const;
+    /**
+     * @brief Enables or disables proposing filesystem timestamps from file metadata.
+     */
+    void set_restore_metadata_timestamps(bool value);
+    /**
+     * @brief Returns whether newly created category folders get dates derived from contents.
+     */
+    bool get_derive_folder_dates_from_contents() const;
+    /**
+     * @brief Enables or disables deriving dates for newly created category folders.
+     */
+    void set_derive_folder_dates_from_contents(bool value);
+
+    /**
      * @brief Returns the current target sort folder path.
      * @return Sort folder path as UTF-8 text.
      */
@@ -708,6 +725,8 @@ private:
     bool rename_documents_only{false};
     bool process_documents_only{false};
     bool add_document_date_to_category{false};
+    bool restore_metadata_timestamps{false};
+    bool derive_folder_dates_from_contents{false};
     bool use_consistency_hints{false};
     bool use_whitelist{false};
     std::string default_sort_folder;

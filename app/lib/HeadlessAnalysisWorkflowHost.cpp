@@ -178,6 +178,16 @@ bool HeadlessAnalysisWorkflowHost::use_subcategories() const
     return settings_.get_use_subcategories();
 }
 
+bool HeadlessAnalysisWorkflowHost::restore_metadata_timestamps() const
+{
+    return settings_.get_restore_metadata_timestamps();
+}
+
+bool HeadlessAnalysisWorkflowHost::derive_folder_dates_from_contents() const
+{
+    return settings_.get_derive_folder_dates_from_contents();
+}
+
 bool HeadlessAnalysisWorkflowHost::include_subdirectories() const
 {
     return settings_.get_include_subdirectories();

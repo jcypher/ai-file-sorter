@@ -118,6 +118,8 @@ public:
      * @return True when subcategory folders are enabled.
      */
     bool use_subcategories() const;
+    bool restore_metadata_timestamps() const;
+    bool derive_folder_dates_from_contents() const;
 
     /**
      * @brief Return whether the workflow scanned subdirectories.

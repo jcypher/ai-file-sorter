@@ -495,6 +495,8 @@ private:
     QPointer<QCheckBox> offer_rename_documents_checkbox;
     QPointer<QCheckBox> rename_documents_only_checkbox;
     QPointer<QCheckBox> add_document_date_to_category_checkbox;
+    QPointer<QCheckBox> restore_metadata_timestamps_checkbox;
+    QPointer<QCheckBox> derive_folder_dates_from_contents_checkbox;
     QPointer<QToolButton> document_options_toggle_button;
     QPointer<QWidget> document_options_container;
     QPointer<QTreeView> tree_view;

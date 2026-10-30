@@ -3,6 +3,7 @@
 #include "AppTheme.hpp"
 #include "BulkEditDialog.hpp"
 #include "DatabaseManager.hpp"
+#include "FileTimestampUtils.hpp"
 #include "LocalFsProvider.hpp"
 #include "Logger.hpp"
 #include "MovableCategorizedFile.hpp"
@@ -22,6 +23,7 @@
 #include <QBrush>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QDateTime>
 #include <QEvent>
 #include <QFrame>
 #include <QHeaderView>
@@ -230,6 +232,48 @@ bool CategorizationDialog::review_auto_approve_categorization_enabled() const
         : auto_approve_categorization_;
 }
 
+void CategorizationDialog::set_restore_metadata_timestamps_enabled(bool enabled)
+{
+    restore_metadata_timestamps_ = enabled;
+}
+
+void CategorizationDialog::set_derive_folder_dates_from_contents_enabled(bool enabled)
+{
+    derive_folder_dates_from_contents_ = enabled;
+}
+
+void CategorizationDialog::apply_row_timestamp_recovery(int row,
+                                                        const std::filesystem::path& destination_path)
+{
+    if (!restore_metadata_timestamps_ || !model || destination_path.empty()) {
+        return;
+    }
+    auto* file_item = model->item(row, ColumnFile);
+    if (!file_item) {
+        return;
+    }
+
+    const QVariant proposed_created = file_item->data(kProposedCreatedRole);
+    const QVariant proposed_modified = file_item->data(kProposedModifiedRole);
+    if (!proposed_created.isValid() && !proposed_modified.isValid()) {
+        return;
+    }
+
+    std::optional<std::time_t> created;
+    std::optional<std::time_t> modified;
+    if (proposed_created.isValid()) {
+        created = static_cast<std::time_t>(proposed_created.toLongLong());
+    }
+    if (proposed_modified.isValid()) {
+        modified = static_cast<std::time_t>(proposed_modified.toLongLong());
+    }
+
+    FileTimestampUtils::FileTimestamps current;
+    FileTimestampUtils::read_file_timestamps(destination_path, current);
+    FileTimestampUtils::apply_recovered_file_timestamps(
+        destination_path, created, modified, current.date_added);
+}
+
 
 bool CategorizationDialog::is_dialog_valid() const
 {
@@ -353,7 +397,7 @@ void CategorizationDialog::setup_ui()
     scroll_layout->addWidget(rename_documents_only_checkbox);
 
     model = new QStandardItemModel(this);
-    model->setColumnCount(8);
+    model->setColumnCount(9);
 
     table_view = new QTableView(this);
     table_view->setObjectName(QStringLiteral("aifsReviewTable"));
@@ -718,6 +762,21 @@ void CategorizationDialog::populate_model()
                                     to_lower_copy_str(file.suggested_name) == to_lower_copy_str(file.file_name));
         file_item->setData(file.rename_applied, kRenameAppliedRole);
         file_item->setData(rename_locked, kRenameLockedRole);
+        if (file.current_created) {
+            file_item->setData(static_cast<qint64>(*file.current_created), kCurrentCreatedRole);
+        }
+        if (file.current_modified) {
+            file_item->setData(static_cast<qint64>(*file.current_modified), kCurrentModifiedRole);
+        }
+        if (file.proposed_created) {
+            file_item->setData(static_cast<qint64>(*file.proposed_created), kProposedCreatedRole);
+        }
+        if (file.proposed_modified) {
+            file_item->setData(static_cast<qint64>(*file.proposed_modified), kProposedModifiedRole);
+        }
+        if (!file.proposed_date_source.empty()) {
+            file_item->setData(QString::fromStdString(file.proposed_date_source), kProposedDateSourceRole);
+        }
 
         const bool is_image_entry = is_supported_image_entry(file.file_path, file.file_name, file.type);
 
@@ -767,6 +826,38 @@ void CategorizationDialog::populate_model()
             subcategory_item->setIcon(edit_icon());
         }
 
+        auto format_epoch = [](std::optional<std::time_t> value) -> QString {
+            if (!value || *value <= 0) {
+                return {};
+            }
+            return QDateTime::fromSecsSinceEpoch(static_cast<qint64>(*value), Qt::UTC)
+                .toString(QStringLiteral("yyyy-MM-dd"));
+        };
+        QStringList date_bits;
+        if (file.proposed_created) {
+            date_bits << tr("Created %1→%2")
+                             .arg(format_epoch(file.current_created), format_epoch(file.proposed_created));
+        }
+        if (file.proposed_modified) {
+            date_bits << tr("Modified %1→%2")
+                             .arg(format_epoch(file.current_modified), format_epoch(file.proposed_modified));
+        }
+        auto* dates_item = new QStandardItem(date_bits.join(QStringLiteral("; ")));
+        dates_item->setEditable(false);
+        if (!date_bits.isEmpty()) {
+            QString tip = tr("Approved Process rows apply these filesystem date updates.");
+#if defined(Q_OS_MACOS)
+            tip += QLatin1Char('\n') +
+                   tr("Date Added is preserved across moves.");
+#endif
+            if (!file.proposed_date_source.empty()) {
+                tip += QLatin1Char('\n') +
+                       tr("Source: %1").arg(QString::fromStdString(file.proposed_date_source));
+            }
+            dates_item->setToolTip(tip);
+            file_item->setToolTip(tip);
+        }
+
         auto* status_item = new QStandardItem;
         status_item->setEditable(false);
         status_item->setData(static_cast<int>(RowStatus::None), kStatusRole);
@@ -782,6 +873,7 @@ void CategorizationDialog::populate_model()
             << suggested_item
             << category_item
             << subcategory_item
+            << dates_item
             << status_item
             << preview_item;
         model->appendRow(row);
@@ -1073,6 +1165,7 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
     }
 
     std::vector<std::string> files_not_moved;
+    std::vector<std::filesystem::path> new_dirs;
     ScopedFlag guard(suppress_item_changed_);
     if (include_subdirectories_) {
         struct CollisionState {
@@ -1185,6 +1278,28 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
             source_dir = base_dir;
         }
 
+        // Capture missing destination parents before the move creates them.
+        if (!dry_run && !rename_only) {
+            const std::string effective_subcategory =
+                subcategory.empty() ? category : subcategory;
+            try {
+                MovableCategorizedFile probe(*storage_provider_,
+                                             source_dir,
+                                             base_dir,
+                                             category,
+                                             effective_subcategory,
+                                             file_name,
+                                             resolve_destination_name(file_name, rename_candidate));
+                FileTimestampUtils::collect_missing_directory_segments(
+                    Utils::utf8_to_path(probe.get_category_path()), new_dirs);
+                if (show_subcategory_column) {
+                    FileTimestampUtils::collect_missing_directory_segments(
+                        Utils::utf8_to_path(probe.get_subcategory_path()), new_dirs);
+                }
+            } catch (...) {
+            }
+        }
+
         handle_selected_row(row_index,
                             file_name,
                             rename_candidate,
@@ -1197,6 +1312,10 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
                             rename_only,
                             used_consistency_hints,
                             dry_run);
+    }
+
+    if (!dry_run && derive_folder_dates_from_contents_ && !new_dirs.empty()) {
+        FileTimestampUtils::stamp_new_directories_from_contents(std::move(new_dirs));
     }
 
     if (dry_run) {
@@ -1420,6 +1539,7 @@ void CategorizationDialog::handle_selected_row(int row_index,
         const auto move_result = storage_provider_->move_entry(Utils::path_to_utf8(source_path),
                                                                Utils::path_to_utf8(dest_path));
         if (move_result.success) {
+            apply_row_timestamp_recovery(row_index, dest_path);
             update_status_column(row_index, true, true, rename_active, false);
             const std::string source_text = Utils::path_to_utf8(source_path);
             const std::string destination_text = Utils::path_to_utf8(dest_path);
@@ -1536,6 +1656,7 @@ void CategorizationDialog::handle_selected_row(int row_index,
                                   move_result.message.empty() ? "operation skipped" : move_result.message);
             }
         } else {
+            apply_row_timestamp_recovery(row_index, Utils::utf8_to_path(preview_paths.destination));
             const long long history_id = record_review_history(
                 row_index,
                 rename_active ? "rename_and_categorize" : "categorize",
@@ -2836,6 +2957,7 @@ void CategorizationDialog::retranslate_ui()
             tr("Suggested filename"),
             tr("Category"),
             tr("Subcategory"),
+            tr("Dates"),
             tr("Status"),
             tr("Destination")
         });

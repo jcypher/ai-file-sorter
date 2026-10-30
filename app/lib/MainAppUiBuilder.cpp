@@ -442,6 +442,15 @@ void MainAppUiBuilder::build_central_panel(MainApp& app) {
     audio_video_row->addStretch(1);
     main_layout->addLayout(audio_video_row);
 
+    app.restore_metadata_timestamps_checkbox = new QCheckBox(central);
+    app.derive_folder_dates_from_contents_checkbox = new QCheckBox(central);
+    auto* timestamp_options_layout = new QVBoxLayout();
+    timestamp_options_layout->setContentsMargins(0, 0, 0, 0);
+    timestamp_options_layout->setSpacing(2);
+    timestamp_options_layout->addWidget(app.restore_metadata_timestamps_checkbox);
+    timestamp_options_layout->addWidget(app.derive_folder_dates_from_contents_checkbox);
+    main_layout->addLayout(timestamp_options_layout);
+
     app.categorization_style_heading = new QLabel(central);
     app.categorization_style_refined_radio = new QRadioButton(central);
     app.categorization_style_consistent_radio = new QRadioButton(central);
@@ -565,6 +574,8 @@ UiTranslator::Dependencies MainAppUiBuilder::build_translator_dependencies(MainA
             app.offer_rename_documents_checkbox,
             app.rename_documents_only_checkbox,
             app.add_document_date_to_category_checkbox,
+            app.restore_metadata_timestamps_checkbox,
+            app.derive_folder_dates_from_contents_checkbox,
             app.document_options_toggle_button},
         .tree_model = app.tree_model,
         .menus = UiTranslator::MenuControls{

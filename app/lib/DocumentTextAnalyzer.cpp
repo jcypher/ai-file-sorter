@@ -303,13 +303,24 @@ std::optional<std::string> normalize_date(const std::string& input) {
     return std::nullopt;
 }
 
-std::optional<std::string> extract_docx_date(const std::filesystem::path& path) {
+std::optional<std::string> extract_docx_date(const std::filesystem::path& path, bool modification) {
     auto xml = extract_zip_member(path, {QStringLiteral("docProps/core.xml")}, 5000);
     if (!xml) {
         return std::nullopt;
     }
-    static const std::regex kCreatedTag(R"(<dcterms:created[^>]*>([^<]+)</dcterms:created>)");
     std::smatch match;
+    if (modification) {
+        static const std::regex kModifiedTag(R"(<dcterms:modified[^>]*>([^<]+)</dcterms:modified>)");
+        if (std::regex_search(*xml, match, kModifiedTag)) {
+            return normalize_date(match.str(1));
+        }
+        static const std::regex kAltModifiedTag(R"(<cp:modified[^>]*>([^<]+)</cp:modified>)");
+        if (std::regex_search(*xml, match, kAltModifiedTag)) {
+            return normalize_date(match.str(1));
+        }
+        return std::nullopt;
+    }
+    static const std::regex kCreatedTag(R"(<dcterms:created[^>]*>([^<]+)</dcterms:created>)");
     if (std::regex_search(*xml, match, kCreatedTag)) {
         return normalize_date(match.str(1));
     }
@@ -320,14 +331,16 @@ std::optional<std::string> extract_docx_date(const std::filesystem::path& path) 
     return std::nullopt;
 }
 
-std::optional<std::string> extract_pdf_date(const std::filesystem::path& path) {
+std::optional<std::string> extract_pdf_date(const std::filesystem::path& path, bool modification) {
     const QString file_path = path_to_qstring(path);
+    const char* pdfinfo_prefix = modification ? "ModDate" : "CreationDate";
+    const char* pdfinfo_prefix_spaced = modification ? "Mod Date" : "Creation Date";
     if (const auto pdfinfo = find_executable(QStringLiteral("pdfinfo"))) {
         if (auto output = run_process(*pdfinfo, {file_path}, 4000)) {
             std::istringstream iss(*output);
             std::string line;
             while (std::getline(iss, line)) {
-                if (line.rfind("CreationDate", 0) == 0 || line.rfind("Creation Date", 0) == 0) {
+                if (line.rfind(pdfinfo_prefix, 0) == 0 || line.rfind(pdfinfo_prefix_spaced, 0) == 0) {
                     if (auto parsed = normalize_date(line)) {
                         return parsed;
                     }
@@ -338,6 +351,14 @@ std::optional<std::string> extract_pdf_date(const std::filesystem::path& path) {
 
     std::string raw = read_file_prefix(path, 200000);
     if (raw.empty()) {
+        return std::nullopt;
+    }
+    if (modification) {
+        static const std::regex kModified(R"(/ModDate\s*\(([^\)]*)\))");
+        std::smatch match;
+        if (std::regex_search(raw, match, kModified)) {
+            return normalize_date(match.str(1));
+        }
         return std::nullopt;
     }
     static const std::regex kCreation(R"(/CreationDate\s*\(([^\)]*)\))");
@@ -565,10 +586,24 @@ std::optional<std::string> DocumentTextAnalyzer::extract_creation_date(const std
     }
     const std::string ext = to_lower_copy(Utils::path_to_utf8(path.extension()));
     if (ext == ".pdf") {
-        return extract_pdf_date(path);
+        return extract_pdf_date(path, false);
     }
     if (ext == ".docx") {
-        return extract_docx_date(path);
+        return extract_docx_date(path, false);
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> DocumentTextAnalyzer::extract_modification_date(const std::filesystem::path& path) {
+    if (!path.has_extension()) {
+        return std::nullopt;
+    }
+    const std::string ext = to_lower_copy(Utils::path_to_utf8(path.extension()));
+    if (ext == ".pdf") {
+        return extract_pdf_date(path, true);
+    }
+    if (ext == ".docx") {
+        return extract_docx_date(path, true);
     }
     return std::nullopt;
 }

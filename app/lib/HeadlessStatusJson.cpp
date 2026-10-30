@@ -186,6 +186,21 @@ QJsonObject categorized_file_to_json(const CategorizedFile& entry)
     object.insert(QStringLiteral("canonicalCategory"), from_utf8(entry.canonical_category));
     object.insert(QStringLiteral("canonicalSubcategory"), from_utf8(entry.canonical_subcategory));
     object.insert(QStringLiteral("learningContext"), from_utf8(entry.learning_context));
+    if (entry.current_created) {
+        object.insert(QStringLiteral("currentCreated"), static_cast<qint64>(*entry.current_created));
+    }
+    if (entry.current_modified) {
+        object.insert(QStringLiteral("currentModified"), static_cast<qint64>(*entry.current_modified));
+    }
+    if (entry.proposed_created) {
+        object.insert(QStringLiteral("proposedCreated"), static_cast<qint64>(*entry.proposed_created));
+    }
+    if (entry.proposed_modified) {
+        object.insert(QStringLiteral("proposedModified"), static_cast<qint64>(*entry.proposed_modified));
+    }
+    if (!entry.proposed_date_source.empty()) {
+        object.insert(QStringLiteral("proposedDateSource"), from_utf8(entry.proposed_date_source));
+    }
     return object;
 }
 
@@ -206,6 +221,23 @@ CategorizedFile categorized_file_from_json(const QJsonObject& object)
     entry.canonical_category = to_utf8(object.value(QStringLiteral("canonicalCategory")).toString());
     entry.canonical_subcategory = to_utf8(object.value(QStringLiteral("canonicalSubcategory")).toString());
     entry.learning_context = to_utf8(object.value(QStringLiteral("learningContext")).toString());
+    if (object.contains(QStringLiteral("currentCreated"))) {
+        entry.current_created = static_cast<std::time_t>(
+            object.value(QStringLiteral("currentCreated")).toVariant().toLongLong());
+    }
+    if (object.contains(QStringLiteral("currentModified"))) {
+        entry.current_modified = static_cast<std::time_t>(
+            object.value(QStringLiteral("currentModified")).toVariant().toLongLong());
+    }
+    if (object.contains(QStringLiteral("proposedCreated"))) {
+        entry.proposed_created = static_cast<std::time_t>(
+            object.value(QStringLiteral("proposedCreated")).toVariant().toLongLong());
+    }
+    if (object.contains(QStringLiteral("proposedModified"))) {
+        entry.proposed_modified = static_cast<std::time_t>(
+            object.value(QStringLiteral("proposedModified")).toVariant().toLongLong());
+    }
+    entry.proposed_date_source = to_utf8(object.value(QStringLiteral("proposedDateSource")).toString());
     return entry;
 }
 
@@ -219,6 +251,9 @@ QJsonObject apply_options_to_json(const HeadlessReviewApplyService::Options& opt
     object.insert(QStringLiteral("applySuggestedNames"), options.apply_suggested_names);
     object.insert(QStringLiteral("moveCategorizedEntries"), options.move_categorized_entries);
     object.insert(QStringLiteral("categoryLanguage"), categoryLanguageToString(options.category_language));
+    object.insert(QStringLiteral("restoreMetadataTimestamps"), options.restore_metadata_timestamps);
+    object.insert(QStringLiteral("deriveFolderDatesFromContents"),
+                  options.derive_folder_dates_from_contents);
     return object;
 }
 
@@ -234,6 +269,10 @@ HeadlessReviewApplyService::Options apply_options_from_json(const QJsonObject& o
     options.category_language =
         categoryLanguageFromString(object.value(QStringLiteral("categoryLanguage")).toString());
     options.apply_changes = true;
+    options.restore_metadata_timestamps =
+        object.value(QStringLiteral("restoreMetadataTimestamps")).toBool(false);
+    options.derive_folder_dates_from_contents =
+        object.value(QStringLiteral("deriveFolderDatesFromContents")).toBool(false);
     return options;
 }
 

@@ -80,6 +80,12 @@ public:
      * @return Creation date formatted as YYYY-MM when available.
      */
     static std::optional<std::string> extract_creation_date(const std::filesystem::path& path);
+    /**
+     * @brief Attempts to read a modification date from supported document metadata.
+     * @param path Document path to inspect.
+     * @return Modification date formatted as YYYY-MM when available.
+     */
+    static std::optional<std::string> extract_modification_date(const std::filesystem::path& path);
 
 private:
     std::string extract_text(const std::filesystem::path& path) const;

@@ -1278,6 +1278,20 @@ void MainApp::apply_accessibility_metadata()
                         add_document_date_to_category_checkbox
                             ? add_document_date_to_category_checkbox->toolTip()
                             : QString());
+    apply_named_control(restore_metadata_timestamps_checkbox,
+                        restore_metadata_timestamps_checkbox
+                            ? restore_metadata_timestamps_checkbox->text()
+                            : QString(),
+                        restore_metadata_timestamps_checkbox
+                            ? restore_metadata_timestamps_checkbox->toolTip()
+                            : QString());
+    apply_named_control(derive_folder_dates_from_contents_checkbox,
+                        derive_folder_dates_from_contents_checkbox
+                            ? derive_folder_dates_from_contents_checkbox->text()
+                            : QString(),
+                        derive_folder_dates_from_contents_checkbox
+                            ? derive_folder_dates_from_contents_checkbox->toolTip()
+                            : QString());
     apply_named_control(document_options_toggle_button,
                         document_options_toggle_button
                             ? document_options_toggle_button->toolTip()
@@ -3504,6 +3518,10 @@ void MainApp::show_results_dialog(const std::vector<CategorizedFile>& results)
                                                                        this,
                                                                        &user_learning_store_,
                                                                        &review_history_store_);
+        categorization_dialog->set_restore_metadata_timestamps_enabled(
+            settings.get_restore_metadata_timestamps());
+        categorization_dialog->set_derive_folder_dates_from_contents_enabled(
+            settings.get_derive_folder_dates_from_contents());
         categorization_dialog->show_results(results,
                                             get_folder_path(),
                                             settings.get_include_subdirectories(),

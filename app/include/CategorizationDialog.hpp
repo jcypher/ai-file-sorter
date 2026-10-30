@@ -8,6 +8,7 @@
 #include <QDialog>
 #include <QStandardItemModel>
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <tuple>
@@ -92,6 +93,14 @@ public:
      */
     bool review_auto_approve_categorization_enabled() const;
     /**
+     * @brief Enables applying approved metadata-based Created/Modified recovery after moves.
+     */
+    void set_restore_metadata_timestamps_enabled(bool enabled);
+    /**
+     * @brief Enables deriving dates for newly created category folders after apply.
+     */
+    void set_derive_folder_dates_from_contents_enabled(bool enabled);
+    /**
      * @brief Replace the file preview service used by the review dialog.
      * @param preview_service Service to use. Passing nullptr restores the default implementation.
      */
@@ -154,6 +163,11 @@ private:
     static constexpr int kCanonicalCategoryRole = Qt::UserRole + 12;
     static constexpr int kCanonicalSubcategoryRole = Qt::UserRole + 13;
     static constexpr int kLearningContextRole = Qt::UserRole + 14;
+    static constexpr int kProposedCreatedRole = Qt::UserRole + 15;
+    static constexpr int kProposedModifiedRole = Qt::UserRole + 16;
+    static constexpr int kCurrentCreatedRole = Qt::UserRole + 17;
+    static constexpr int kCurrentModifiedRole = Qt::UserRole + 18;
+    static constexpr int kProposedDateSourceRole = Qt::UserRole + 19;
 
     enum Column {
         ColumnSelect = 0,
@@ -162,8 +176,9 @@ private:
         ColumnSuggestedName = 3,
         ColumnCategory = 4,
         ColumnSubcategory = 5,
-        ColumnStatus = 6,
-        ColumnPreview = 7
+        ColumnDates = 6,
+        ColumnStatus = 7,
+        ColumnPreview = 8
     };
 
     struct MoveRecord {
@@ -316,6 +331,7 @@ private:
     void remove_empty_parent_directories(const std::string& destination);
     void set_preview_status(int row, const std::string& destination);
     void update_preview_column(int row);
+    void apply_row_timestamp_recovery(int row, const std::filesystem::path& destination_path);
     std::optional<std::string> compute_preview_path(int row) const;
     std::optional<PreviewRecord> build_preview_record_for_row(int row, std::string* debug_reason = nullptr) const;
     std::string resolve_destination_name(const std::string& original_name,
@@ -393,6 +409,8 @@ private:
     bool include_subdirectories_{false};
     bool allow_image_renames_{true};
     bool allow_document_renames_{true};
+    bool restore_metadata_timestamps_{false};
+    bool derive_folder_dates_from_contents_{false};
     bool show_rename_column{false};
     std::vector<CategorizedFile> categorized_files;
 

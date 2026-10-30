@@ -473,6 +473,8 @@ Settings::Settings()
     rename_documents_only = false;
     process_documents_only = false;
     add_document_date_to_category = false;
+    restore_metadata_timestamps = false;
+    derive_folder_dates_from_contents = false;
 }
 
 LLMChoice Settings::parse_llm_choice() const
@@ -519,6 +521,8 @@ void Settings::load_basic_settings(const std::function<bool(const char*, bool)>&
     rename_documents_only = load_bool("RenameDocumentsOnly", false);
     process_documents_only = load_bool("ProcessDocumentsOnly", false);
     add_document_date_to_category = load_bool("AddDocumentDateToCategory", false);
+    restore_metadata_timestamps = load_bool("RestoreMetadataTimestamps", false);
+    derive_folder_dates_from_contents = load_bool("DeriveFolderDatesFromContents", false);
     const bool image_expand_default = process_images_only ||
                                       offer_rename_images ||
                                       rename_images_only ||
@@ -688,6 +692,8 @@ void Settings::save_core_settings()
     set_bool_setting(config, settings_section, "RenameDocumentsOnly", rename_documents_only);
     set_bool_setting(config, settings_section, "ProcessDocumentsOnly", process_documents_only);
     set_bool_setting(config, settings_section, "AddDocumentDateToCategory", add_document_date_to_category);
+    set_bool_setting(config, settings_section, "RestoreMetadataTimestamps", restore_metadata_timestamps);
+    set_bool_setting(config, settings_section, "DeriveFolderDatesFromContents", derive_folder_dates_from_contents);
     config.setValue(settings_section, "SortFolder", this->sort_folder);
 
     set_optional_setting(config, settings_section, "SkippedVersion", skipped_version);
@@ -1286,6 +1292,26 @@ bool Settings::get_add_document_date_to_category() const
 void Settings::set_add_document_date_to_category(bool value)
 {
     add_document_date_to_category = value;
+}
+
+bool Settings::get_restore_metadata_timestamps() const
+{
+    return restore_metadata_timestamps;
+}
+
+void Settings::set_restore_metadata_timestamps(bool value)
+{
+    restore_metadata_timestamps = value;
+}
+
+bool Settings::get_derive_folder_dates_from_contents() const
+{
+    return derive_folder_dates_from_contents;
+}
+
+void Settings::set_derive_folder_dates_from_contents(bool value)
+{
+    derive_folder_dates_from_contents = value;
 }
 
 

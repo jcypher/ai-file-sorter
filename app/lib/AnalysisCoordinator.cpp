@@ -7,6 +7,7 @@
 #include "DatabaseManager.hpp"
 #include "DocumentTextAnalyzer.hpp"
 #include "FilenameLocalizationService.hpp"
+#include "FileTimestampUtils.hpp"
 #include "ILLMClient.hpp"
 #include "ImageAnalyzerFactory.hpp"
 #include "ImageRenameMetadataService.hpp"
@@ -46,6 +47,75 @@ constexpr int kMinimumPromptBudgetTokens = 256;
 constexpr int kDefaultDocumentOutputTokens = 256;
 constexpr int kLocalDocumentCharsPerToken = 2;
 constexpr int kRemoteDocumentCharsPerToken = 4;
+
+void fill_timestamp_proposals(CategorizedFile& entry,
+                              ImageRenameMetadataService* image_metadata_service)
+{
+    if (entry.type != FileType::File) {
+        return;
+    }
+
+    const auto full_path = Utils::utf8_to_path(entry.file_path) / Utils::utf8_to_path(entry.file_name);
+    FileTimestampUtils::FileTimestamps current;
+    if (FileTimestampUtils::read_file_timestamps(full_path, current)) {
+        if (current.birthtime > 0) {
+            entry.current_created = current.birthtime;
+        }
+        if (current.mtime > 0) {
+            entry.current_modified = current.mtime;
+        }
+    }
+
+    std::optional<std::time_t> created_candidate;
+    std::optional<std::time_t> modified_candidate;
+    std::string source;
+
+    if (image_metadata_service) {
+        if (const auto capture = image_metadata_service->extract_capture_date(full_path)) {
+            created_candidate = FileTimestampUtils::parse_metadata_date(*capture);
+            if (created_candidate) {
+                source = "exif";
+            }
+        }
+    }
+    if (!created_candidate && DocumentTextAnalyzer::is_supported_document(full_path)) {
+        if (const auto created = DocumentTextAnalyzer::extract_creation_date(full_path)) {
+            created_candidate = FileTimestampUtils::parse_metadata_date(*created);
+            if (created_candidate) {
+                source = "document";
+            }
+        }
+        if (const auto modified = DocumentTextAnalyzer::extract_modification_date(full_path)) {
+            modified_candidate = FileTimestampUtils::parse_metadata_date(*modified);
+            if (modified_candidate && source.empty()) {
+                source = "document";
+            }
+        }
+    }
+    // Year-only media tags are intentionally ignored for filesystem recovery.
+
+    const std::time_t current_created = entry.current_created.value_or(0);
+    const std::time_t current_modified = entry.current_modified.value_or(0);
+    if (created_candidate) {
+        entry.proposed_created =
+            FileTimestampUtils::propose_created(current_created, *created_candidate);
+    }
+    if (modified_candidate) {
+        entry.proposed_modified =
+            FileTimestampUtils::propose_modified(current_modified, *modified_candidate);
+    }
+    if (entry.proposed_created || entry.proposed_modified) {
+        entry.proposed_date_source = source;
+    }
+}
+
+void fill_timestamp_proposals(std::vector<CategorizedFile>& entries,
+                              ImageRenameMetadataService* image_metadata_service)
+{
+    for (auto& entry : entries) {
+        fill_timestamp_proposals(entry, image_metadata_service);
+    }
+}
 
 class AnalysisCancelled : public std::runtime_error {
 public:
@@ -274,6 +344,7 @@ AnalysisRunResult AnalysisCoordinator::execute()
             app_.settings.get_add_audio_video_metadata_to_filename();
         const bool add_document_date =
             analyze_documents && app_.settings.get_add_document_date_to_category();
+        const bool restore_metadata_timestamps = app_.settings.get_restore_metadata_timestamps();
         const bool use_full_path_keys = app_.settings.get_include_subdirectories();
 
         const auto cached_entries = app_.categorization_service.load_cached_entries(directory_path);
@@ -848,7 +919,7 @@ AnalysisRunResult AnalysisCoordinator::execute()
         std::unique_ptr<ImageRenameMetadataService> image_metadata_service;
         std::unique_ptr<MediaRenameMetadataService> media_metadata_service;
         std::unordered_map<std::string, std::string> media_rename_suggestions;
-        if (add_image_date_place_prefixes || add_image_date_to_category) {
+        if (add_image_date_place_prefixes || add_image_date_to_category || restore_metadata_timestamps) {
             image_metadata_service =
                 std::make_unique<ImageRenameMetadataService>(app_.settings.get_config_dir());
         }
@@ -1734,6 +1805,9 @@ AnalysisRunResult AnalysisCoordinator::execute()
             preview_entries.push_back(entry);
             apply_image_dates(preview_entries);
             apply_document_dates(preview_entries);
+            if (restore_metadata_timestamps) {
+                fill_timestamp_proposals(preview_entries, image_metadata_service.get());
+            }
             app_.new_files_with_categories.push_back(std::move(preview_entries.front()));
             app_.notify_review_preview_changed();
         };
@@ -1968,6 +2042,10 @@ AnalysisRunResult AnalysisCoordinator::execute()
 
         localize_review_suggestions(app_.already_categorized_files, true);
         localize_review_suggestions(pending_renames, false);
+        if (restore_metadata_timestamps) {
+            fill_timestamp_proposals(app_.already_categorized_files, image_metadata_service.get());
+            fill_timestamp_proposals(pending_renames, image_metadata_service.get());
+        }
         app_.notify_review_preview_changed();
 
         std::vector<CategorizedFile> review_entries = app_.already_categorized_files;

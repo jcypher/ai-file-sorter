@@ -228,6 +228,18 @@ void MainWindowStateBinder::connect_checkbox_signals()
         });
     }
 
+    if (app_.restore_metadata_timestamps_checkbox) {
+        QObject::connect(app_.restore_metadata_timestamps_checkbox, &QCheckBox::toggled, &app_, [this](bool checked) {
+            app_.settings.set_restore_metadata_timestamps(checked);
+        });
+    }
+
+    if (app_.derive_folder_dates_from_contents_checkbox) {
+        QObject::connect(app_.derive_folder_dates_from_contents_checkbox, &QCheckBox::toggled, &app_, [this](bool checked) {
+            app_.settings.set_derive_folder_dates_from_contents(checked);
+        });
+    }
+
     if (app_.document_options_toggle_button) {
         QObject::connect(app_.document_options_toggle_button, &QToolButton::toggled, &app_, [this](bool) {
             app_.settings.set_document_options_expanded(app_.document_options_toggle_button->isChecked());
@@ -336,6 +348,16 @@ void MainWindowStateBinder::restore_tree_settings()
         QSignalBlocker blocker(app_.add_document_date_to_category_checkbox);
         app_.add_document_date_to_category_checkbox->setChecked(
             app_.settings.get_add_document_date_to_category());
+    }
+    if (app_.restore_metadata_timestamps_checkbox) {
+        QSignalBlocker blocker(app_.restore_metadata_timestamps_checkbox);
+        app_.restore_metadata_timestamps_checkbox->setChecked(
+            app_.settings.get_restore_metadata_timestamps());
+    }
+    if (app_.derive_folder_dates_from_contents_checkbox) {
+        QSignalBlocker blocker(app_.derive_folder_dates_from_contents_checkbox);
+        app_.derive_folder_dates_from_contents_checkbox->setChecked(
+            app_.settings.get_derive_folder_dates_from_contents());
     }
     if (app_.document_options_toggle_button) {
         const bool expand_documents = app_.settings.get_document_options_expanded();
@@ -456,6 +478,14 @@ void MainWindowStateBinder::sync_ui_to_settings()
     if (app_.add_document_date_to_category_checkbox) {
         app_.settings.set_add_document_date_to_category(
             app_.add_document_date_to_category_checkbox->isChecked());
+    }
+    if (app_.restore_metadata_timestamps_checkbox) {
+        app_.settings.set_restore_metadata_timestamps(
+            app_.restore_metadata_timestamps_checkbox->isChecked());
+    }
+    if (app_.derive_folder_dates_from_contents_checkbox) {
+        app_.settings.set_derive_folder_dates_from_contents(
+            app_.derive_folder_dates_from_contents_checkbox->isChecked());
     }
     const QByteArray folder_bytes = app_.path_entry->text().toUtf8();
     app_.settings.set_sort_folder(

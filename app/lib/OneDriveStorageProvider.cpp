@@ -1,6 +1,7 @@
 #include "OneDriveStorageProvider.hpp"
 
 #include "CloudPathSupport.hpp"
+#include "FileTimestampUtils.hpp"
 #include "Utils.hpp"
 
 #include <QJsonDocument>
@@ -768,6 +769,9 @@ StorageMutationResult OneDriveStorageProvider::move_entry(const std::string& sou
         return result;
     }
 
+    FileTimestampUtils::FileTimestamps preserved;
+    const bool have_preserved = FileTimestampUtils::read_file_timestamps(source_path, preserved);
+
     std::error_code ec;
     std::filesystem::rename(source_path, destination_path, ec);
     if (ec) {
@@ -779,6 +783,12 @@ StorageMutationResult OneDriveStorageProvider::move_entry(const std::string& sou
         result.metadata.stable_identity = preflight.source_status.stable_identity;
         result.metadata.revision_token = preflight.source_status.revision_token;
         return result;
+    }
+
+    if (have_preserved) {
+        FileTimestampUtils::write_file_timestamps(destination_path,
+                                                  preserved,
+                                                  FileTimestampUtils::TimestampField::All);
     }
 
     const auto destination_status = inspect_local_path(destination);
@@ -825,11 +835,20 @@ StorageMutationResult OneDriveStorageProvider::undo_move(const std::string& sour
         return result;
     }
 
+    FileTimestampUtils::FileTimestamps preserved;
+    const bool have_preserved = FileTimestampUtils::read_file_timestamps(destination_path, preserved);
+
     std::error_code ec;
     std::filesystem::rename(destination_path, source_path, ec);
     if (ec) {
         result.message = ec.message();
         return result;
+    }
+
+    if (have_preserved) {
+        FileTimestampUtils::write_file_timestamps(source_path,
+                                                  preserved,
+                                                  FileTimestampUtils::TimestampField::All);
     }
 
     remove_empty_parent_directories(destination_path);
@@ -844,6 +863,14 @@ StorageEntryMetadata OneDriveStorageProvider::build_metadata(const std::filesyst
     StorageEntryMetadata metadata;
     metadata.size_bytes = read_size(path);
     metadata.mtime = read_mtime(path);
+    FileTimestampUtils::FileTimestamps timestamps;
+    if (FileTimestampUtils::read_file_timestamps(path, timestamps)) {
+        metadata.birthtime = timestamps.birthtime;
+        metadata.date_added = timestamps.date_added;
+        if (timestamps.mtime > 0) {
+            metadata.mtime = timestamps.mtime;
+        }
+    }
     metadata.stable_identity = status.stable_identity.empty()
         ? make_stable_identity(Utils::path_to_utf8(path))
         : status.stable_identity;

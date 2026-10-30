@@ -84,6 +84,8 @@ QJsonObject metadata_to_json(const StorageEntryMetadata& metadata)
     QJsonObject object;
     object["size_bytes"] = static_cast<qint64>(metadata.size_bytes);
     object["mtime"] = static_cast<qint64>(metadata.mtime);
+    object["birthtime"] = static_cast<qint64>(metadata.birthtime);
+    object["date_added"] = static_cast<qint64>(metadata.date_added);
     object["stable_identity"] = QString::fromStdString(metadata.stable_identity);
     object["revision_token"] = QString::fromStdString(metadata.revision_token);
     return object;

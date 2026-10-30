@@ -1,6 +1,7 @@
 #include "HeadlessReviewApplyService.hpp"
 
 #include "DatabaseManager.hpp"
+#include "FileTimestampUtils.hpp"
 #include "MovableCategorizedFile.hpp"
 #include "ReviewFileNaming.hpp"
 #include "ReviewHistoryStore.hpp"
@@ -278,8 +279,40 @@ HeadlessReviewApplyService::apply(const std::vector<CategorizedFile>& entries,
 
     std::vector<MoveRecord> move_history;
     move_history.reserve(entries.size());
+    std::vector<std::filesystem::path> new_dirs;
     for (const auto& entry : entries_to_apply) {
+        if (options.apply_changes && options.derive_folder_dates_from_contents &&
+            !entry.rename_only && options.move_categorized_entries) {
+            const std::string category = display_category(entry);
+            const std::string subcategory = display_subcategory(entry);
+            if (!is_missing_category_label(category)) {
+                const std::string effective_subcategory =
+                    is_missing_category_label(subcategory) ? category : subcategory;
+                const std::string destination_name = resolve_destination_name(
+                    entry, options.apply_suggested_names && !entry.rename_applied);
+                try {
+                    MovableCategorizedFile probe(storage_provider_,
+                                                 entry.file_path,
+                                                 options.base_dir,
+                                                 category,
+                                                 effective_subcategory,
+                                                 entry.file_name,
+                                                 destination_name);
+                    FileTimestampUtils::collect_missing_directory_segments(
+                        Utils::utf8_to_path(probe.get_category_path()), new_dirs);
+                    if (options.use_subcategories) {
+                        FileTimestampUtils::collect_missing_directory_segments(
+                            Utils::utf8_to_path(probe.get_subcategory_path()), new_dirs);
+                    }
+                } catch (...) {
+                }
+            }
+        }
         apply_entry(entry, options, result, move_history);
+    }
+
+    if (options.apply_changes && options.derive_folder_dates_from_contents && !new_dirs.empty()) {
+        FileTimestampUtils::stamp_new_directories_from_contents(std::move(new_dirs));
     }
 
     result.undo_plan_saved = persist_undo_plan(options, move_history);
@@ -342,6 +375,14 @@ void HeadlessReviewApplyService::apply_entry(const CategorizedFile& entry,
             entry_result.message = move_result.message.empty() ? "Rename failed." : move_result.message;
             append_skipped(result, std::move(entry_result));
             return;
+        }
+
+        if (options.restore_metadata_timestamps) {
+            FileTimestampUtils::FileTimestamps current;
+            const auto dest = Utils::utf8_to_path(entry_result.destination);
+            FileTimestampUtils::read_file_timestamps(dest, current);
+            FileTimestampUtils::apply_recovered_file_timestamps(
+                dest, entry.proposed_created, entry.proposed_modified, current.date_added);
         }
 
         entry_result.renamed = true;
@@ -431,6 +472,14 @@ void HeadlessReviewApplyService::apply_entry(const CategorizedFile& entry,
             entry_result.message = move_result.message.empty() ? "Move failed." : move_result.message;
             append_skipped(result, std::move(entry_result));
             return;
+        }
+
+        if (options.restore_metadata_timestamps) {
+            FileTimestampUtils::FileTimestamps current;
+            const auto dest = Utils::utf8_to_path(preview.destination);
+            FileTimestampUtils::read_file_timestamps(dest, current);
+            FileTimestampUtils::apply_recovered_file_timestamps(
+                dest, entry.proposed_created, entry.proposed_modified, current.date_added);
         }
 
         entry_result.moved = true;

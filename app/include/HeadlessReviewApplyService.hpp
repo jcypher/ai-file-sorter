@@ -41,6 +41,10 @@ public:
         CategoryLanguage category_language{CategoryLanguage::English};
         /** @brief Whether planned changes should be committed to storage and cache. */
         bool apply_changes{true};
+        /** @brief Whether approved metadata Created/Modified proposals should be written. */
+        bool restore_metadata_timestamps{false};
+        /** @brief Whether newly created category folders should inherit dates from contents. */
+        bool derive_folder_dates_from_contents{false};
     };
 
     /**

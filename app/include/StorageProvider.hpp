@@ -66,6 +66,8 @@ struct StorageMovePreflight {
 struct StorageEntryMetadata {
     std::uintmax_t size_bytes{0};
     std::time_t mtime{0};
+    std::time_t birthtime{0};
+    std::time_t date_added{0};
     std::string stable_identity;
     std::string revision_token;
 };

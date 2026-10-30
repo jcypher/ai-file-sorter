@@ -247,6 +247,10 @@ StorageMutationResult mutation_from_json(const QJsonObject& response)
         metadata.value("size_bytes").toVariant().toULongLong());
     result.metadata.mtime = static_cast<std::time_t>(
         metadata.value("mtime").toVariant().toLongLong());
+    result.metadata.birthtime = static_cast<std::time_t>(
+        metadata.value("birthtime").toVariant().toLongLong());
+    result.metadata.date_added = static_cast<std::time_t>(
+        metadata.value("date_added").toVariant().toLongLong());
     result.metadata.stable_identity = metadata.value("stable_identity").toString().toStdString();
     result.metadata.revision_token = metadata.value("revision_token").toString().toStdString();
     return result;

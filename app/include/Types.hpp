@@ -1,6 +1,8 @@
 #ifndef TYPES_HPP
 #define TYPES_HPP
 
+#include <ctime>
+#include <optional>
 #include <string>
 
 enum class LLMChoice {
@@ -38,6 +40,11 @@ struct CategorizedFile {
     std::string canonical_category;
     std::string canonical_subcategory;
     std::string learning_context;
+    std::optional<std::time_t> current_created;
+    std::optional<std::time_t> current_modified;
+    std::optional<std::time_t> proposed_created;
+    std::optional<std::time_t> proposed_modified;
+    std::string proposed_date_source;
 };
 
 inline std::string to_string(FileType type) {

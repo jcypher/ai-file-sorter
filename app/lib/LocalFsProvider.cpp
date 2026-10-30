@@ -1,5 +1,6 @@
 #include "LocalFsProvider.hpp"
 
+#include "FileTimestampUtils.hpp"
 #include "Utils.hpp"
 
 #include <chrono>
@@ -17,12 +18,19 @@ StorageEntryMetadata read_metadata(const std::filesystem::path& path)
         ec.clear();
     }
 
-    const auto write_time = std::filesystem::last_write_time(path, ec);
-    if (!ec) {
-        const auto delta = write_time - std::filesystem::file_time_type::clock::now();
-        const auto system_time = std::chrono::system_clock::now() +
-            std::chrono::duration_cast<std::chrono::system_clock::duration>(delta);
-        metadata.mtime = std::chrono::system_clock::to_time_t(system_time);
+    FileTimestampUtils::FileTimestamps timestamps;
+    if (FileTimestampUtils::read_file_timestamps(path, timestamps)) {
+        metadata.mtime = timestamps.mtime;
+        metadata.birthtime = timestamps.birthtime;
+        metadata.date_added = timestamps.date_added;
+    } else {
+        const auto write_time = std::filesystem::last_write_time(path, ec);
+        if (!ec) {
+            const auto delta = write_time - std::filesystem::file_time_type::clock::now();
+            const auto system_time = std::chrono::system_clock::now() +
+                std::chrono::duration_cast<std::chrono::system_clock::duration>(delta);
+            metadata.mtime = std::chrono::system_clock::to_time_t(system_time);
+        }
     }
 
     metadata.stable_identity = Utils::path_to_utf8(path.lexically_normal());
@@ -174,11 +182,20 @@ StorageMutationResult LocalFsProvider::move_entry(const std::string& source,
         return result;
     }
 
+    FileTimestampUtils::FileTimestamps preserved;
+    const bool have_preserved = FileTimestampUtils::read_file_timestamps(source_path, preserved);
+
     std::error_code ec;
     std::filesystem::rename(source_path, destination_path, ec);
     if (ec) {
         result.message = ec.message();
         return result;
+    }
+
+    if (have_preserved) {
+        FileTimestampUtils::write_file_timestamps(destination_path,
+                                                  preserved,
+                                                  FileTimestampUtils::TimestampField::All);
     }
 
     result.success = true;
@@ -213,6 +230,9 @@ StorageMutationResult LocalFsProvider::undo_move(const std::string& source,
         return result;
     }
 
+    FileTimestampUtils::FileTimestamps preserved;
+    const bool have_preserved = FileTimestampUtils::read_file_timestamps(destination_path, preserved);
+
     std::error_code ec;
     std::filesystem::rename(destination_path, source_path, ec);
     if (ec) {
@@ -220,7 +240,14 @@ StorageMutationResult LocalFsProvider::undo_move(const std::string& source,
         return result;
     }
 
+    if (have_preserved) {
+        FileTimestampUtils::write_file_timestamps(source_path,
+                                                  preserved,
+                                                  FileTimestampUtils::TimestampField::All);
+    }
+
     remove_empty_parent_directories(destination_path);
     result.success = true;
+    result.metadata = read_metadata(source_path);
     return result;
 }
