@@ -770,7 +770,7 @@ StorageMutationResult OneDriveStorageProvider::move_entry(const std::string& sou
     }
 
     FileTimestampUtils::FileTimestamps preserved;
-    const bool have_preserved = FileTimestampUtils::read_file_timestamps(source_path, preserved);
+    FileTimestampUtils::read_file_timestamps(source_path, preserved);
 
     std::error_code ec;
     std::filesystem::rename(source_path, destination_path, ec);
@@ -785,11 +785,7 @@ StorageMutationResult OneDriveStorageProvider::move_entry(const std::string& sou
         return result;
     }
 
-    if (have_preserved) {
-        FileTimestampUtils::write_file_timestamps(destination_path,
-                                                  preserved,
-                                                  FileTimestampUtils::TimestampField::All);
-    }
+    FileTimestampUtils::restore_preserved_timestamps(destination_path, preserved);
 
     const auto destination_status = inspect_local_path(destination);
     result.success = true;
@@ -836,7 +832,7 @@ StorageMutationResult OneDriveStorageProvider::undo_move(const std::string& sour
     }
 
     FileTimestampUtils::FileTimestamps preserved;
-    const bool have_preserved = FileTimestampUtils::read_file_timestamps(destination_path, preserved);
+    FileTimestampUtils::read_file_timestamps(destination_path, preserved);
 
     std::error_code ec;
     std::filesystem::rename(destination_path, source_path, ec);
@@ -845,11 +841,7 @@ StorageMutationResult OneDriveStorageProvider::undo_move(const std::string& sour
         return result;
     }
 
-    if (have_preserved) {
-        FileTimestampUtils::write_file_timestamps(source_path,
-                                                  preserved,
-                                                  FileTimestampUtils::TimestampField::All);
-    }
+    FileTimestampUtils::restore_preserved_timestamps(source_path, preserved);
 
     remove_empty_parent_directories(destination_path);
     result.success = true;

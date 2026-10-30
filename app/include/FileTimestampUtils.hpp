@@ -80,6 +80,12 @@ bool write_file_timestamps(const std::filesystem::path& path,
                            TimestampField fields = TimestampField::All);
 
 /**
+ * @brief Best-effort restore of previously captured timestamps onto @p path.
+ * No-ops when all fields are zero.
+ */
+void restore_preserved_timestamps(const std::filesystem::path& path, const FileTimestamps& times);
+
+/**
  * @brief Proposes a created time only when the candidate is strictly older than current.
  */
 std::optional<std::time_t> propose_created(std::time_t current, std::time_t candidate);
@@ -109,6 +115,15 @@ void collect_missing_directory_segments(const std::filesystem::path& directory,
                                         std::vector<std::filesystem::path>& out);
 
 /**
+ * @brief Collects missing category/subcategory destination directories under @p base_dir.
+ */
+void collect_missing_category_directories(const std::filesystem::path& base_dir,
+                                          const std::string& category,
+                                          const std::string& subcategory,
+                                          bool use_subcategory,
+                                          std::vector<std::filesystem::path>& out);
+
+/**
  * @brief Stamps newly created directories from their immediate children (deepest first).
  * @param new_dirs Directories created during apply.
  * @return Number of directories successfully stamped.
@@ -116,7 +131,8 @@ void collect_missing_directory_segments(const std::filesystem::path& directory,
 std::size_t stamp_new_directories_from_contents(std::vector<std::filesystem::path> new_dirs);
 
 /**
- * @brief Writes recovered Created/Modified while re-applying preserved Date Added on macOS.
+ * @brief Writes recovered Created/Modified while re-applying Date Added on macOS.
+ * No-ops when both proposals are empty. Re-reads Date Added when @p preserved_date_added is 0.
  */
 bool apply_recovered_file_timestamps(const std::filesystem::path& path,
                                      std::optional<std::time_t> proposed_created,

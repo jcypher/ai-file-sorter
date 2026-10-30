@@ -86,6 +86,14 @@ public:
      * @return Modification date formatted as YYYY-MM when available.
      */
     static std::optional<std::string> extract_modification_date(const std::filesystem::path& path);
+    /**
+     * @brief Reads creation and modification dates in a single metadata pass when possible.
+     */
+    struct DocumentDates {
+        std::optional<std::string> created;
+        std::optional<std::string> modified;
+    };
+    static DocumentDates extract_dates(const std::filesystem::path& path);
 
 private:
     std::string extract_text(const std::filesystem::path& path) const;

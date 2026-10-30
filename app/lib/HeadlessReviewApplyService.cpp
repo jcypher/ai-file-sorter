@@ -288,24 +288,12 @@ HeadlessReviewApplyService::apply(const std::vector<CategorizedFile>& entries,
             if (!is_missing_category_label(category)) {
                 const std::string effective_subcategory =
                     is_missing_category_label(subcategory) ? category : subcategory;
-                const std::string destination_name = resolve_destination_name(
-                    entry, options.apply_suggested_names && !entry.rename_applied);
-                try {
-                    MovableCategorizedFile probe(storage_provider_,
-                                                 entry.file_path,
-                                                 options.base_dir,
-                                                 category,
-                                                 effective_subcategory,
-                                                 entry.file_name,
-                                                 destination_name);
-                    FileTimestampUtils::collect_missing_directory_segments(
-                        Utils::utf8_to_path(probe.get_category_path()), new_dirs);
-                    if (options.use_subcategories) {
-                        FileTimestampUtils::collect_missing_directory_segments(
-                            Utils::utf8_to_path(probe.get_subcategory_path()), new_dirs);
-                    }
-                } catch (...) {
-                }
+                FileTimestampUtils::collect_missing_category_directories(
+                    Utils::utf8_to_path(options.base_dir),
+                    category,
+                    effective_subcategory,
+                    options.use_subcategories,
+                    new_dirs);
             }
         }
         apply_entry(entry, options, result, move_history);
@@ -378,11 +366,10 @@ void HeadlessReviewApplyService::apply_entry(const CategorizedFile& entry,
         }
 
         if (options.restore_metadata_timestamps) {
-            FileTimestampUtils::FileTimestamps current;
-            const auto dest = Utils::utf8_to_path(entry_result.destination);
-            FileTimestampUtils::read_file_timestamps(dest, current);
             FileTimestampUtils::apply_recovered_file_timestamps(
-                dest, entry.proposed_created, entry.proposed_modified, current.date_added);
+                Utils::utf8_to_path(entry_result.destination),
+                entry.proposed_created,
+                entry.proposed_modified);
         }
 
         entry_result.renamed = true;
@@ -475,11 +462,10 @@ void HeadlessReviewApplyService::apply_entry(const CategorizedFile& entry,
         }
 
         if (options.restore_metadata_timestamps) {
-            FileTimestampUtils::FileTimestamps current;
-            const auto dest = Utils::utf8_to_path(preview.destination);
-            FileTimestampUtils::read_file_timestamps(dest, current);
             FileTimestampUtils::apply_recovered_file_timestamps(
-                dest, entry.proposed_created, entry.proposed_modified, current.date_added);
+                Utils::utf8_to_path(preview.destination),
+                entry.proposed_created,
+                entry.proposed_modified);
         }
 
         entry_result.moved = true;

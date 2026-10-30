@@ -165,9 +165,6 @@ private:
     static constexpr int kLearningContextRole = Qt::UserRole + 14;
     static constexpr int kProposedCreatedRole = Qt::UserRole + 15;
     static constexpr int kProposedModifiedRole = Qt::UserRole + 16;
-    static constexpr int kCurrentCreatedRole = Qt::UserRole + 17;
-    static constexpr int kCurrentModifiedRole = Qt::UserRole + 18;
-    static constexpr int kProposedDateSourceRole = Qt::UserRole + 19;
 
     enum Column {
         ColumnSelect = 0,

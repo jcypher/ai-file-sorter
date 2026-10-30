@@ -183,7 +183,7 @@ StorageMutationResult LocalFsProvider::move_entry(const std::string& source,
     }
 
     FileTimestampUtils::FileTimestamps preserved;
-    const bool have_preserved = FileTimestampUtils::read_file_timestamps(source_path, preserved);
+    FileTimestampUtils::read_file_timestamps(source_path, preserved);
 
     std::error_code ec;
     std::filesystem::rename(source_path, destination_path, ec);
@@ -192,11 +192,7 @@ StorageMutationResult LocalFsProvider::move_entry(const std::string& source,
         return result;
     }
 
-    if (have_preserved) {
-        FileTimestampUtils::write_file_timestamps(destination_path,
-                                                  preserved,
-                                                  FileTimestampUtils::TimestampField::All);
-    }
+    FileTimestampUtils::restore_preserved_timestamps(destination_path, preserved);
 
     result.success = true;
     result.metadata = read_metadata(destination_path);
@@ -231,7 +227,7 @@ StorageMutationResult LocalFsProvider::undo_move(const std::string& source,
     }
 
     FileTimestampUtils::FileTimestamps preserved;
-    const bool have_preserved = FileTimestampUtils::read_file_timestamps(destination_path, preserved);
+    FileTimestampUtils::read_file_timestamps(destination_path, preserved);
 
     std::error_code ec;
     std::filesystem::rename(destination_path, source_path, ec);
@@ -240,11 +236,7 @@ StorageMutationResult LocalFsProvider::undo_move(const std::string& source,
         return result;
     }
 
-    if (have_preserved) {
-        FileTimestampUtils::write_file_timestamps(source_path,
-                                                  preserved,
-                                                  FileTimestampUtils::TimestampField::All);
-    }
+    FileTimestampUtils::restore_preserved_timestamps(source_path, preserved);
 
     remove_empty_parent_directories(destination_path);
     result.success = true;

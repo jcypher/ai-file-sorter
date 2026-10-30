@@ -303,32 +303,29 @@ std::optional<std::string> normalize_date(const std::string& input) {
     return std::nullopt;
 }
 
-std::optional<std::string> extract_docx_date(const std::filesystem::path& path, bool modification) {
+DocumentTextAnalyzer::DocumentDates extract_docx_dates(const std::filesystem::path& path) {
+    DocumentTextAnalyzer::DocumentDates dates;
     auto xml = extract_zip_member(path, {QStringLiteral("docProps/core.xml")}, 5000);
     if (!xml) {
-        return std::nullopt;
+        return dates;
     }
     std::smatch match;
-    if (modification) {
-        static const std::regex kModifiedTag(R"(<dcterms:modified[^>]*>([^<]+)</dcterms:modified>)");
-        if (std::regex_search(*xml, match, kModifiedTag)) {
-            return normalize_date(match.str(1));
-        }
-        static const std::regex kAltModifiedTag(R"(<cp:modified[^>]*>([^<]+)</cp:modified>)");
-        if (std::regex_search(*xml, match, kAltModifiedTag)) {
-            return normalize_date(match.str(1));
-        }
-        return std::nullopt;
-    }
     static const std::regex kCreatedTag(R"(<dcterms:created[^>]*>([^<]+)</dcterms:created>)");
-    if (std::regex_search(*xml, match, kCreatedTag)) {
-        return normalize_date(match.str(1));
-    }
     static const std::regex kAltCreatedTag(R"(<cp:created[^>]*>([^<]+)</cp:created>)");
-    if (std::regex_search(*xml, match, kAltCreatedTag)) {
-        return normalize_date(match.str(1));
+    static const std::regex kModifiedTag(R"(<dcterms:modified[^>]*>([^<]+)</dcterms:modified>)");
+    static const std::regex kAltModifiedTag(R"(<cp:modified[^>]*>([^<]+)</cp:modified>)");
+    if (std::regex_search(*xml, match, kCreatedTag) || std::regex_search(*xml, match, kAltCreatedTag)) {
+        dates.created = normalize_date(match.str(1));
     }
-    return std::nullopt;
+    if (std::regex_search(*xml, match, kModifiedTag) || std::regex_search(*xml, match, kAltModifiedTag)) {
+        dates.modified = normalize_date(match.str(1));
+    }
+    return dates;
+}
+
+std::optional<std::string> extract_docx_date(const std::filesystem::path& path, bool modification) {
+    const auto dates = extract_docx_dates(path);
+    return modification ? dates.modified : dates.created;
 }
 
 std::optional<std::string> extract_pdf_date(const std::filesystem::path& path, bool modification) {
@@ -367,6 +364,51 @@ std::optional<std::string> extract_pdf_date(const std::filesystem::path& path, b
         return normalize_date(match.str(1));
     }
     return std::nullopt;
+}
+
+DocumentTextAnalyzer::DocumentDates extract_pdf_dates(const std::filesystem::path& path) {
+    DocumentTextAnalyzer::DocumentDates dates;
+    const QString file_path = path_to_qstring(path);
+    if (const auto pdfinfo = find_executable(QStringLiteral("pdfinfo"))) {
+        if (auto output = run_process(*pdfinfo, {file_path}, 4000)) {
+            std::istringstream iss(*output);
+            std::string line;
+            while (std::getline(iss, line)) {
+                if (!dates.created &&
+                    (line.rfind("CreationDate", 0) == 0 || line.rfind("Creation Date", 0) == 0)) {
+                    dates.created = normalize_date(line);
+                } else if (!dates.modified &&
+                           (line.rfind("ModDate", 0) == 0 || line.rfind("Mod Date", 0) == 0)) {
+                    dates.modified = normalize_date(line);
+                }
+                if (dates.created && dates.modified) {
+                    return dates;
+                }
+            }
+        }
+    }
+
+    if (dates.created && dates.modified) {
+        return dates;
+    }
+    const std::string raw = read_file_prefix(path, 200000);
+    if (raw.empty()) {
+        return dates;
+    }
+    std::smatch match;
+    if (!dates.created) {
+        static const std::regex kCreation(R"(/CreationDate\s*\(([^\)]*)\))");
+        if (std::regex_search(raw, match, kCreation)) {
+            dates.created = normalize_date(match.str(1));
+        }
+    }
+    if (!dates.modified) {
+        static const std::regex kModified(R"(/ModDate\s*\(([^\)]*)\))");
+        if (std::regex_search(raw, match, kModified)) {
+            dates.modified = normalize_date(match.str(1));
+        }
+    }
+    return dates;
 }
 
 #if defined(AI_FILE_SORTER_USE_PDFIUM)
@@ -578,6 +620,22 @@ bool DocumentTextAnalyzer::is_supported_document(const std::filesystem::path& pa
     }
     const std::string ext = to_lower_copy(Utils::path_to_utf8(path.extension()));
     return kDocumentExtensions.find(ext) != kDocumentExtensions.end();
+}
+
+DocumentTextAnalyzer::DocumentDates DocumentTextAnalyzer::extract_dates(
+    const std::filesystem::path& path)
+{
+    if (!path.has_extension()) {
+        return {};
+    }
+    const std::string ext = to_lower_copy(Utils::path_to_utf8(path.extension()));
+    if (ext == ".pdf") {
+        return extract_pdf_dates(path);
+    }
+    if (ext == ".docx") {
+        return extract_docx_dates(path);
+    }
+    return {};
 }
 
 std::optional<std::string> DocumentTextAnalyzer::extract_creation_date(const std::filesystem::path& path) {

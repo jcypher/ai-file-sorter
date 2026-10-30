@@ -70,7 +70,7 @@ void fill_timestamp_proposals(CategorizedFile& entry,
     std::optional<std::time_t> modified_candidate;
     std::string source;
 
-    if (image_metadata_service) {
+    if (image_metadata_service && LlavaImageAnalyzer::is_supported_image(full_path)) {
         if (const auto capture = image_metadata_service->extract_capture_date(full_path)) {
             created_candidate = FileTimestampUtils::parse_metadata_date(*capture);
             if (created_candidate) {
@@ -79,14 +79,15 @@ void fill_timestamp_proposals(CategorizedFile& entry,
         }
     }
     if (!created_candidate && DocumentTextAnalyzer::is_supported_document(full_path)) {
-        if (const auto created = DocumentTextAnalyzer::extract_creation_date(full_path)) {
-            created_candidate = FileTimestampUtils::parse_metadata_date(*created);
+        const auto dates = DocumentTextAnalyzer::extract_dates(full_path);
+        if (dates.created) {
+            created_candidate = FileTimestampUtils::parse_metadata_date(*dates.created);
             if (created_candidate) {
                 source = "document";
             }
         }
-        if (const auto modified = DocumentTextAnalyzer::extract_modification_date(full_path)) {
-            modified_candidate = FileTimestampUtils::parse_metadata_date(*modified);
+        if (dates.modified) {
+            modified_candidate = FileTimestampUtils::parse_metadata_date(*dates.modified);
             if (modified_candidate && source.empty()) {
                 source = "document";
             }

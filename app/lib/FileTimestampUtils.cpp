@@ -192,6 +192,14 @@ bool read_file_timestamps(const std::filesystem::path& path, FileTimestamps& out
 #endif
 }
 
+void restore_preserved_timestamps(const std::filesystem::path& path, const FileTimestamps& times)
+{
+    if (times.birthtime <= 0 && times.mtime <= 0 && times.date_added <= 0) {
+        return;
+    }
+    write_file_timestamps(path, times, TimestampField::All);
+}
+
 bool write_file_timestamps(const std::filesystem::path& path,
                            const FileTimestamps& times,
                            TimestampField fields)
@@ -369,10 +377,25 @@ void collect_missing_directory_segments(const std::filesystem::path& directory,
 
     std::reverse(missing.begin(), missing.end());
     for (const auto& path : missing) {
-        const auto already = std::find(out.begin(), out.end(), path);
-        if (already == out.end()) {
+        if (std::find(out.begin(), out.end(), path) == out.end()) {
             out.push_back(path);
         }
+    }
+}
+
+void collect_missing_category_directories(const std::filesystem::path& base_dir,
+                                          const std::string& category,
+                                          const std::string& subcategory,
+                                          bool use_subcategory,
+                                          std::vector<std::filesystem::path>& out)
+{
+    if (base_dir.empty() || category.empty()) {
+        return;
+    }
+    const auto category_path = base_dir / Utils::utf8_to_path(category);
+    collect_missing_directory_segments(category_path, out);
+    if (use_subcategory && !subcategory.empty()) {
+        collect_missing_directory_segments(category_path / Utils::utf8_to_path(subcategory), out);
     }
 }
 
@@ -381,21 +404,24 @@ bool apply_recovered_file_timestamps(const std::filesystem::path& path,
                                      std::optional<std::time_t> proposed_modified,
                                      std::time_t preserved_date_added)
 {
+    const bool have_created = proposed_created && *proposed_created > 0;
+    const bool have_modified = proposed_modified && *proposed_modified > 0;
+    if (!have_created && !have_modified) {
+        return true;
+    }
+
     FileTimestamps current;
     read_file_timestamps(path, current);
 
     FileTimestamps times = current;
     TimestampField fields = TimestampField::None;
-    if (proposed_created && *proposed_created > 0) {
+    if (have_created) {
         times.birthtime = *proposed_created;
         fields = fields | TimestampField::Birthtime;
     }
-    if (proposed_modified && *proposed_modified > 0) {
+    if (have_modified) {
         times.mtime = *proposed_modified;
         fields = fields | TimestampField::Mtime;
-    }
-    if (fields == TimestampField::None) {
-        return true;
     }
 
     bool ok = write_file_timestamps(path, times, fields);

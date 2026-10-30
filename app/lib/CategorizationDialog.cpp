@@ -268,10 +268,7 @@ void CategorizationDialog::apply_row_timestamp_recovery(int row,
         modified = static_cast<std::time_t>(proposed_modified.toLongLong());
     }
 
-    FileTimestampUtils::FileTimestamps current;
-    FileTimestampUtils::read_file_timestamps(destination_path, current);
-    FileTimestampUtils::apply_recovered_file_timestamps(
-        destination_path, created, modified, current.date_added);
+    FileTimestampUtils::apply_recovered_file_timestamps(destination_path, created, modified);
 }
 
 
@@ -762,20 +759,11 @@ void CategorizationDialog::populate_model()
                                     to_lower_copy_str(file.suggested_name) == to_lower_copy_str(file.file_name));
         file_item->setData(file.rename_applied, kRenameAppliedRole);
         file_item->setData(rename_locked, kRenameLockedRole);
-        if (file.current_created) {
-            file_item->setData(static_cast<qint64>(*file.current_created), kCurrentCreatedRole);
-        }
-        if (file.current_modified) {
-            file_item->setData(static_cast<qint64>(*file.current_modified), kCurrentModifiedRole);
-        }
         if (file.proposed_created) {
             file_item->setData(static_cast<qint64>(*file.proposed_created), kProposedCreatedRole);
         }
         if (file.proposed_modified) {
             file_item->setData(static_cast<qint64>(*file.proposed_modified), kProposedModifiedRole);
-        }
-        if (!file.proposed_date_source.empty()) {
-            file_item->setData(QString::fromStdString(file.proposed_date_source), kProposedDateSourceRole);
         }
 
         const bool is_image_entry = is_supported_image_entry(file.file_path, file.file_name, file.type);
@@ -1279,25 +1267,16 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
         }
 
         // Capture missing destination parents before the move creates them.
-        if (!dry_run && !rename_only) {
+        if (!dry_run && derive_folder_dates_from_contents_ && !rename_only &&
+            !is_missing_category_label(category)) {
             const std::string effective_subcategory =
-                subcategory.empty() ? category : subcategory;
-            try {
-                MovableCategorizedFile probe(*storage_provider_,
-                                             source_dir,
-                                             base_dir,
-                                             category,
-                                             effective_subcategory,
-                                             file_name,
-                                             resolve_destination_name(file_name, rename_candidate));
-                FileTimestampUtils::collect_missing_directory_segments(
-                    Utils::utf8_to_path(probe.get_category_path()), new_dirs);
-                if (show_subcategory_column) {
-                    FileTimestampUtils::collect_missing_directory_segments(
-                        Utils::utf8_to_path(probe.get_subcategory_path()), new_dirs);
-                }
-            } catch (...) {
-            }
+                is_missing_category_label(subcategory) ? category : subcategory;
+            FileTimestampUtils::collect_missing_category_directories(
+                Utils::utf8_to_path(base_dir),
+                category,
+                effective_subcategory,
+                show_subcategory_column,
+                new_dirs);
         }
 
         handle_selected_row(row_index,
