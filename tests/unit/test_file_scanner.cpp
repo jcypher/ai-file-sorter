@@ -69,6 +69,52 @@ TEST_CASE("application bundles are treated as files") {
     REQUIRE(dir_entries.empty());
 }
 
+TEST_CASE("photos libraries are opaque by default and can be descended into") {
+    TempDir temp_dir;
+    const auto library = temp_dir.path() / "Library.photoslibrary";
+    write_file(library / "inner.txt");
+
+    FileScanner scanner;
+    auto opaque = scanner.get_directory_entries(
+        temp_dir.path().string(),
+        FileScanOptions::Files | FileScanOptions::Recursive);
+    REQUIRE(opaque.size() == 1);
+    CHECK(opaque.front().file_name == "Library.photoslibrary");
+    CHECK(opaque.front().type == FileType::File);
+    CHECK(std::none_of(opaque.begin(), opaque.end(), [](const FileEntry& entry) {
+        return entry.file_name == "inner.txt";
+    }));
+
+    auto descended = scanner.get_directory_entries(
+        temp_dir.path().string(),
+        FileScanOptions::Files | FileScanOptions::Recursive |
+            FileScanOptions::DescendIntoPackages);
+    REQUIRE(std::any_of(descended.begin(), descended.end(), [](const FileEntry& entry) {
+        return entry.file_name == "inner.txt";
+    }));
+}
+
+TEST_CASE("band packages are opaque by default and can be descended into") {
+    TempDir temp_dir;
+    const auto band = temp_dir.path() / "Song.band";
+    write_file(band / "projectData");
+
+    FileScanner scanner;
+    auto opaque = scanner.get_directory_entries(
+        temp_dir.path().string(),
+        FileScanOptions::Files | FileScanOptions::Recursive);
+    REQUIRE(opaque.size() == 1);
+    CHECK(opaque.front().file_name == "Song.band");
+
+    auto descended = scanner.get_directory_entries(
+        temp_dir.path().string(),
+        FileScanOptions::Files | FileScanOptions::Recursive |
+            FileScanOptions::DescendIntoPackages);
+    REQUIRE(std::any_of(descended.begin(), descended.end(), [](const FileEntry& entry) {
+        return entry.file_name == "projectData";
+    }));
+}
+
 TEST_CASE("recursive scans include nested files") {
     TempDir temp_dir;
     write_file(temp_dir.path() / "top.txt");

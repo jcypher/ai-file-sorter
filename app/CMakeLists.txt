@@ -1026,6 +1026,10 @@ target_link_libraries(aifilesorter PRIVATE
     ${MEDIAINFO_DEPS_LIBS}
     ${DOC_DEPS_LIBS}
 )
+if(APPLE)
+    target_link_libraries(aifilesorter PRIVATE "-framework CoreFoundation")
+endif()
+
 target_compile_definitions(aifilesorter PRIVATE
     AIFS_STORAGE_PLUGIN_CATALOG_URL="${AI_FILE_SORTER_STORAGE_PLUGIN_CATALOG_URL}"
 )
@@ -1513,6 +1517,9 @@ if(AI_FILE_SORTER_BUILD_TESTS)
         spdlog::spdlog
         fmt::fmt
     )
+    if(APPLE)
+        target_link_libraries(aifs_onedrive_storage_plugin PRIVATE "-framework CoreFoundation")
+    endif()
     if(WIN32)
         target_compile_definitions(aifs_onedrive_storage_plugin PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
         target_link_libraries(aifs_onedrive_storage_plugin PRIVATE ${WIN_SYSTEM_LIBS})
@@ -1620,6 +1627,9 @@ if(AI_FILE_SORTER_BUILD_TESTS)
         ${MEDIAINFO_DEPS_LIBS}
         ${DOC_DEPS_LIBS}
     )
+    if(APPLE)
+        target_link_libraries(ai_file_sorter_tests PRIVATE "-framework CoreFoundation")
+    endif()
 
     qt_add_resources(ai_file_sorter_tests "ai_file_sorter_test_app_resources"
         PREFIX "/dev/hfstudio/AIFileSorter"

@@ -5,10 +5,15 @@
 #include <iostream>
 #include <filesystem>
 #include <optional>
+#include <string>
 #include <unordered_set>
 
 #ifdef _WIN32
 #include <windows.h>
+#endif
+
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 namespace fs = std::filesystem;
@@ -18,12 +23,54 @@ namespace {
 constexpr fs::directory_options kIteratorOptions =
     fs::directory_options::skip_permission_denied;
 
+bool extension_is_known_bundle(const fs::path& path)
+{
+    static const std::unordered_set<std::string> bundle_extensions = {
+        ".app", ".utm", ".vmwarevm", ".pvm", ".vbox", ".pkg", ".mpkg",
+        ".prefPane", ".plugin", ".framework", ".kext", ".qlgenerator",
+        ".mdimporter", ".wdgt", ".scptd", ".nib", ".xib",
+        ".photoslibrary", ".imovielibrary", ".tvlibrary", ".theater",
+        ".band", ".gbproj", ".logicx"
+    };
+
+    std::string ext = Utils::path_to_utf8(path.extension());
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    return bundle_extensions.contains(ext);
+}
+
+#ifdef __APPLE__
+std::optional<bool> macos_url_is_package(const fs::path& path)
+{
+    const std::string utf8 = Utils::path_to_utf8(path);
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation(
+        kCFAllocatorDefault,
+        reinterpret_cast<const UInt8*>(utf8.data()),
+        static_cast<CFIndex>(utf8.size()),
+        true);
+    if (!url) {
+        return std::nullopt;
+    }
+
+    CFBooleanRef is_package = nullptr;
+    const Boolean ok = CFURLCopyResourcePropertyForKey(
+        url, kCFURLIsPackageKey, &is_package, nullptr);
+    CFRelease(url);
+    if (!ok || is_package == nullptr) {
+        return std::nullopt;
+    }
+    const bool result = CFBooleanGetValue(is_package);
+    CFRelease(is_package);
+    return result;
+}
+#endif
+
 } // namespace
 
 struct FileScanner::ScanContext {
     bool include_files{false};
     bool include_directories{false};
     bool include_hidden{false};
+    FileScanOptions options{FileScanOptions::None};
     FileScannerBehavior behavior;
     ProtectedProjectDetector protected_project_detector;
     std::shared_ptr<spdlog::logger> logger;
@@ -45,6 +92,7 @@ FileScanner::get_directory_entries(const std::string &directory_path,
     context.include_files = has_flag(options, FileScanOptions::Files);
     context.include_directories = has_flag(options, FileScanOptions::Directories);
     context.include_hidden = has_flag(options, FileScanOptions::HiddenFiles);
+    context.options = options;
     context.behavior = behavior;
     context.logger = logger;
     const bool recursive = has_flag(options, FileScanOptions::Recursive);
@@ -141,13 +189,15 @@ void FileScanner::scan_recursive(const fs::path& scan_path,
                                  "Skipping entry after filesystem error");
             } else {
                 const bool bundle = is_file_bundle(entry_path, is_directory);
+                const bool effective_bundle =
+                    bundle && !has_flag(context.options, FileScanOptions::DescendIntoPackages);
                 const bool skip_entry = should_skip_entry(entry, entry_path, file_name, context, full_path);
                 if (!skip_entry) {
-                    if (auto type = classify_entry(entry, bundle, is_directory, context)) {
+                    if (auto type = classify_entry(entry, effective_bundle, is_directory, context)) {
                         results.push_back(FileEntry{full_path, file_name, *type});
                     }
                 }
-                if (is_directory && !bundle && !skip_entry) {
+                if (is_directory && !effective_bundle && !skip_entry) {
                     pending_dirs.push_back(entry_path);
                 }
             }
@@ -224,19 +274,17 @@ bool FileScanner::is_additional_junk_file(const std::string& name,
 
 
 bool FileScanner::is_file_bundle(const fs::path& path, bool is_directory) const {
-    static const std::unordered_set<std::string> bundle_extensions = {
-        ".app", ".utm", ".vmwarevm", ".pvm", ".vbox", ".pkg", ".mpkg",
-        ".prefPane", ".plugin", ".framework", ".kext", ".qlgenerator",
-        ".mdimporter", ".wdgt", ".scptd", ".nib", ".xib"
-    };
     if (!is_directory) {
         return false;
     }
 
-    std::string ext = Utils::path_to_utf8(path.extension());
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+#ifdef __APPLE__
+    if (const auto package = macos_url_is_package(path)) {
+        return *package;
+    }
+#endif
 
-    return bundle_extensions.contains(ext);
+    return extension_is_known_bundle(path);
 }
 
 std::optional<FileEntry> FileScanner::build_entry(const fs::directory_entry& entry,
@@ -259,7 +307,9 @@ std::optional<FileEntry> FileScanner::build_entry(const fs::directory_entry& ent
     }
 
     const bool bundle = is_file_bundle(entry_path, is_directory);
-    if (auto type = classify_entry(entry, bundle, is_directory, context)) {
+    const bool effective_bundle =
+        bundle && !has_flag(context.options, FileScanOptions::DescendIntoPackages);
+    if (auto type = classify_entry(entry, effective_bundle, is_directory, context)) {
         return FileEntry{std::move(full_path), std::move(file_name), *type};
     }
     return std::nullopt;
