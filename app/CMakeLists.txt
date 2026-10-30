@@ -1495,6 +1495,7 @@ if(AI_FILE_SORTER_BUILD_TESTS)
         "${CMAKE_CURRENT_SOURCE_DIR}/plugins/onedrive_storage_plugin_main.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/CloudPathSupport.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/FileScanner.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/lib/FileTimestampUtils.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/LocalFsProvider.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/Logger.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/OneDriveStorageProvider.cpp"
